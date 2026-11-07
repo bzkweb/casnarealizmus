@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Výstava – diela</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600&family=Newsreader:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --wall:#1d2a33; --ink:#f1ece4; --muted:#9fb0ba; --panel:#26363f; --line:#3a4d58; --accent:#e8b04a;
+  --ui:"Bricolage Grotesque",system-ui,sans-serif; --serif:"Newsreader",Georgia,serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){--wall:#e3e7e4;--ink:#1c2a31;--muted:#566a74;--panel:#f6f7f5;--line:#c3cdc9;--accent:#a8641a}
+}
+:root[data-theme="light"]{--wall:#e3e7e4;--ink:#1c2a31;--muted:#566a74;--panel:#f6f7f5;--line:#c3cdc9;--accent:#a8641a}
+:root[data-theme="dark"]{--wall:#1d2a33;--ink:#f1ece4;--muted:#9fb0ba;--panel:#26363f;--line:#3a4d58;--accent:#e8b04a}
+*{box-sizing:inherit}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--wall);color:var(--ink);font-family:var(--ui);overflow:hidden;overscroll-behavior:none}
+header{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:5;padding:14px 16px;display:flex;gap:10px;align-items:center;justify-content:center;pointer-events:none}
+.search{position:relative;width:min(420px,100%);pointer-events:auto}
+.search input{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:12px 88px 12px 18px;outline:none}
+.search input:focus-visible{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
+.search .btns{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;gap:2px}
+.search .btns button{border:0;background:none;color:var(--muted);font-size:18px;width:36px;height:36px;border-radius:50%;cursor:pointer}
+.search .btns button:hover,.search .btns button:focus-visible{color:var(--ink);background:var(--line);outline:none}
+#sug{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);border-radius:18px;max-height:46vh;overflow:auto;padding:6px;display:none}
+#sug.open{display:block}
+#sug button{display:flex;justify-content:space-between;width:100%;font:inherit;color:var(--ink);background:none;border:0;border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer}
+#sug button:hover,#sug button.on{background:var(--line)}
+#sug small{color:var(--muted)}
+#sug p{margin:0;padding:10px 12px;color:var(--muted)}
+#stage{position:fixed;inset:0;touch-action:none;cursor:grab}
+#stage.drag{cursor:grabbing}
+.w{position:absolute;left:0;top:0;padding:0;cursor:pointer;will-change:transform;touch-action:none}
+.w:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+#status{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));text-align:center;color:var(--muted);font-size:14px;pointer-events:none}
+dialog{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:24px;padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto}
+dialog::backdrop{background:rgba(8,14,18,.62)}
+dialog[open]{animation:pop .22s ease-out}
+@keyframes pop{from{transform:scale(.88);opacity:0}to{transform:none;opacity:1}}
+.stagewrap{display:flex;justify-content:center;padding:18px;background:rgba(0,0,0,.2)}
+.w,.art{--x:#6f6f6f;background-color:#fff;border:1px solid var(--x);border-radius:0;box-shadow:none;background-image:linear-gradient(to top right,transparent calc(50% - .5px),var(--x) calc(50% - .5px),var(--x) calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(to bottom right,transparent calc(50% - .5px),var(--x) calc(50% - .5px),var(--x) calc(50% + .5px),transparent calc(50% + .5px))}
+.body{padding:20px 24px 24px}
+h2{font-family:var(--serif);font-weight:400;font-size:30px;line-height:1.15;margin:0 0 4px}
+.meta{margin:0 0 14px;color:var(--muted);font-size:15px}
+.ann{white-space:pre-line;font-family:var(--serif);font-size:18px;line-height:1.55;margin:0 0 20px;max-width:60ch}
+h3{font-size:15px;font-weight:600;margin:0 0 8px}
+.others{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.others button{font:inherit;font-size:14px;color:var(--ink);background:none;border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer}
+.others button:hover,.others button:focus-visible{border-color:var(--accent);outline:none}
+.close{position:absolute;top:12px;right:12px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.5);color:#fff;font-size:20px;cursor:pointer}
+.close:focus-visible{outline:3px solid var(--accent)}
+@media (prefers-reduced-motion:reduce){dialog[open]{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="search">
+    <input id="q" type="text" placeholder="Autor – vyberte alebo napíšte meno" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sug" aria-label="Autor">
+    <div class="btns"><button id="clr" type="button" aria-label="Zrušiť filter" hidden>×</button><button id="drop" type="button" aria-label="Zobraziť zoznam autorov">▾</button></div>
+    <div id="sug" role="listbox"></div>
+  </div>
+</header>
+<div id="stage"></div>
+<div id="status"></div>
+<dialog id="dlg" aria-labelledby="dt">
+  <button class="close" id="dc" type="button" aria-label="Zavrieť">×</button>
+  <div class="stagewrap"><div class="art" id="da"></div></div>
+  <div class="body">
+    <h2 id="dt"></h2>
+    <p class="meta" id="dm"></p>
+    <p class="ann" id="dn"></p>
+    <h3>Ďalšie diela autora</h3>
+    <ul class="others" id="do"></ul>
+  </div>
+</dialog>
+
+<script>
+/* ===== DÁTA z katalógu: [autor, názov, rok, technika, rozmery, zbierka, pomer strán (šírka/výška), poznámka] ===== */
+const DATA = [
+["Robert Bielik","František","2025","olej na plátne","60 × 60 cm","majetok autora",1],
+["Robert Bielik","Ružový František","2025","olej na plátne","110 × 120 cm","majetok autora",1.09],
+["Milan Bočkay","Papier XXXIX.","1982","kresba na papieri","výška 84,5 cm, šírka 60 cm","zbierka PGU v Žiline",0.71],
+["Milan Bočkay","Papier XXXVII.","1980","kresba na papieri","85 × 60 cm","zbierka PGU v Žiline",0.71],
+["Michal Černušák","Glorious Favor","2012","akryl a olej na plátne","240 × 190 cm","majetok autora",0.79],
+["Peter Daniš","Lightscape","2022","olej na plátne","100 × 200 cm","majetok autora",2],
+["Julián Filo","Trpká dezilúzia","1987","olej/lak na plátne","100 × 200 cm","súkromný majetok",2],
+["Julián Filo","Bez názvu","1982","olej na plátne","100 × 162 cm","súkromný majetok",1.62],
+["Bohdan Hostiňák","Bez názvu","1997","olej na plátne","78 × 78,5 cm","zbierka NG",1.01],
+["Roman Hrčka","Fragmenty ľudskosti","2018","sadra","175 × 160 × 320 cm","majetok autora",0.91],
+["Roman Hrčka","Klietky samoty (dva objekty)","2019","epoxid, kov","113 × 138 × 108 cm a 115 × 135 × 120 cm","majetok autora",1.22],
+["František Hrtús","Na brehu priezračnej rieky","1974","olej na plátne","41 × 51 cm","zbierka KG v Oščadnici",1.24],
+["František Hrtús","Variácie na drevo I.","1984","olej na plátne","65 × 50 cm","zbierka KG v Oščadnici",0.77],
+["Jozef Jankovič","Korejský motív III.","2006","bronz a mramor","51 × 50 × 23 cm","zbierka GMAB v Trenčíne",0.98],
+["Martin Kochan","Zmena okĺbenia","2020","polyester","130 cm","majetok autora",1],
+["Marcel Mališ","Lebensraum","2025","olej na plátne","90 × 65 cm","súkromná zbierka",0.72],
+["Marcel Mališ","Lebensraum, H&M Hommage a Roy","2026","olej na plátne","90 × 65 cm","súkromná zbierka",0.72],
+["Richard Marco","Seven sleepers I.","2025","olej na plátne","190 × 130 cm","",0.68,"Tomb of St. Jedwiga Poland by Antoni Madeyski"],
+["Richard Marco","Seven sleepers III.","2025","olej na plátne","190 × 130 cm","",0.68,"Tomb of Pope Clement VI. by master Pierre Boye and his two assistants Jean de Sanholis and Jean David, 1346 – 1351"],
+["Dušan Mravec","Spomienky","2019","olej na plátne","150 × 180 cm","majetok autora",1.2],
+["Dušan Mravec","Sestry","2019","olej na plátne","60 × 50 cm","majetok autora",0.83],
+["Michal Mráz","Crash","2025","olej, akryl, asfalt na plátne","100 × 120 cm","súkromný majetok",1.2],
+["Michal Mráz","House of Card","2024","olej, akryl, asfalt na plátne","70 × 50 cm","súkromný majetok",0.71],
+["Michaela Rázusová Nociarová","Plavky","2003","olej na plátne","160 × 130 cm","súkromný majetok",0.81],
+["Štefan Papčo","Stanislav – Občania","2012 – 2026","drevo","49 × 165 × 70 cm","majetok autora",0.3],
+["Štefan Papčo","Alena – Občania","2011 – 2026","lipové drevo","59 × 88 × 172 cm","majetok autora",0.34],
+["Veronika Rónaiová","Všedné dni","1987","olej na plátne","100 × 150 cm","zbierka „NUBA GALLERY“",1.5],
+["Roman Rembovský","V rajskej záhrade / In The Garden Of Eden","2024 – 2026","olej na plátne","140 × 120 cm","majetok autora",0.86],
+["Roman Rembovský","V tichu / In The Silence","2022","olej na plátne","100 × 120 cm","majetok autora",1.2],
+["Maroš Rovňák","Štúdia figúry v krajine II","2026","olej na plátne","120 × 150 cm","majetok autora",1.25],
+["Martina Rötling","Troubling Areas I. a II.","2023","kresba na papieri","73 × 55 cm","zbierka NG",0.75],
+["Dorota Sadovská","#StayHome 5","2022","olej na plátne","80 × 70 cm","majetok autorky",0.88],
+["Miroslav Sandanus","Ilúzie I","2023","akryl na plátne","155 × 190 cm","majetok autora",1.23],
+["Pavol Stručka","Harry a Modráček","2013 – 2014","olej na plátne","200 × 170 cm","zbierka GMAB v Trenčíne",0.85],
+["Jozef Suchoža","Immaculatam","2018","sadra","47 ks, jednotlivo 40 × 10 × 10 cm","majetok autora",0.25],
+["Jozef Srna st.","Po dostihoch","1981","olej na plátne","125 × 145 cm","zbierka GMAB v Trenčíne",1.16],
+["Adam Šakový","Kamene 8","2020","akryl na plátne","130 × 220 cm","majetok autora",1.69],
+["Adam Šakový","Kamene 9","2020","akryl na plátne","130 × 220 cm","majetok autora",1.69],
+["Veronika Šramatyová","Hobby painting 1.–6.","2008","gvaš na papieri","8 × 12 cm","zbierka SSG v Banskej Bystrici",1.5],
+["Miloš Šimurda","Situácia č. 2","1970 – 72","olej, plátno, plexisklo, kov","200 × 116 × 10 cm","zbierka SNG",0.58],
+["Miloš Šimurda","Spolujazdec","1971","plexisklo, plátno, plech, asambláž","116 × 200 × 10 cm","zbierka SNG",1.72],
+["Miro Trubač","Ján, dospievanie","2023","kombinovaná technika","30 × 160 × 400 cm","majetok autora",1.5],
+["Dušana Vrbovská","Z cyklu Nájsť cestu V.","2025","olej na plátne","90 × 130 cm","majetok autorky",1.44],
+["Vladislav Zabel","Caelum","2018","olej na dreve","tondo, priemer 80 cm","majetok autora",1],
+["Uľjana Zmetáková","Prvý lúč","1978","tempera na kartóne","77 × 51 cm","zbierka „NUBA GALLERY“",0.66],
+["Ivona Žirková","Vrstvy","2021","akryl na plátne","190 × 130 cm","majetok autorky",0.68]
+];
+
+const stage=document.getElementById('stage'), status=document.getElementById('status');
+const q=document.getElementById('q'), sug=document.getElementById('sug'), clr=document.getElementById('clr'), drop=document.getElementById('drop');
+const dlg=document.getElementById('dlg');
+const norm=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const authors=[...new Set(DATA.map(d=>d[0]))];
+const works=DATA.map((d,i)=>({i,author:d[0],title:d[1],year:d[2],tech:d[3],dim:d[4],coll:d[5],ar:d[6],note:d[7]||'',round:/tondo/.test(d[4]),
+  /* jedna pastelová farba pre každé dielo – neskôr nahradia reprodukcie */
+  color:`hsl(${Math.round((i*137.508)%360)} ${62+(i*7)%14}% ${80+(i*5)%7}%)`}));
+
+/* ===== Rozloženie ako na Apple Watch (včelia plástva) + zväčšovanie pri strede ===== */
+const GAP=118; let list=[], els=[], pos=[], ox=0, oy=0, vx=0, vy=0, raf=0, filter=null;
+let bounds={x:0,y:0};
+function build(){
+  stage.innerHTML='';
+  list=works.filter(w=>!filter||w.author===filter);
+  const n=list.length;
+  /* náhodné, ale stabilné rozmiestnenie: každé dielo má minimálny odstup od ostatných */
+  let sd=filter?[...filter].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,17):2024;
+  const rng=()=>(sd=(sd*1664525+1013904223)>>>0)/4294967296;
+  const area=n*GAP*GAP*1.6, hw=Math.sqrt(area*1.25)/2, hh=Math.sqrt(area/1.25)/2;
+  let md=GAP*1.05; pos=[];
+  list.forEach(()=>{let p,t=0;
+    do{p={x:(rng()*2-1)*hw,y:(rng()*2-1)*hh};t++;if(t%50===0)md*=.92;}
+    while(t<600&&pos.some(o=>Math.hypot(o.x-p.x,o.y-p.y)<md));
+    pos.push(p);});
+  bounds={x:hw,y:hh};
+  els=list.map(w=>{const b=document.createElement('button');b.className='w';b.type='button';
+    const S=116,bw=w.ar>=1?S:S*w.ar,bh=w.ar>=1?S/w.ar:S;
+    b.style.width=bw+'px';b.style.height=bh+'px';b.style.margin=`${-bh/2}px 0 0 ${-bw/2}px`;
+    if(w.round)b.style.borderRadius='50%';b.setAttribute('aria-label',w.title+', '+w.author);
+    b.addEventListener('click',()=>{if(!moved)openWork(w)});stage.appendChild(b);return b;});
+  ox=oy=0;vx=vy=0;render();
+  status.textContent=filter?`${filter} · ${n} ${n===1?'dielo':n<5?'diela':'diel'}`:`${n} diel · potiahnite prstom a vyberte dielo`;
+}
+function render(){
+  const W=innerWidth,H=innerHeight,cx=W/2,cy=H/2+20,R=Math.min(W,H)*.55;
+  for(let k=0;k<els.length;k++){
+    const x=pos[k].x+ox,y=pos[k].y+oy,d=Math.hypot(x,y),t=Math.min(1,d/R);
+    const sc=.26+1.12*Math.pow(1-t,1.35)+(t>=1?0:0);
+    els[k].style.transform=`translate(${cx+x}px,${cy+y}px) scale(${sc.toFixed(3)})`;
+    els[k].style.opacity=Math.min(1,.35+sc*1.1).toFixed(2);
+    els[k].style.zIndex=Math.round(sc*100);
+  }
+}
+function clamp(){
+  const lx=bounds.x+40, ly=bounds.y+40;
+  ox=Math.max(-lx,Math.min(lx,ox)); oy=Math.max(-ly,Math.min(ly,oy));
+}
+function glide(){
+  ox+=vx;oy+=vy;vx*=.93;vy*=.93;clamp();render();
+  if(Math.hypot(vx,vy)>.2)raf=requestAnimationFrame(glide);
+}
+let down=false,moved=false,sx=0,sy=0,lx=0,ly=0,lt=0;
+stage.addEventListener('pointerdown',e=>{down=true;moved=false;sx=lx=e.clientX;sy=ly=e.clientY;lt=performance.now();cancelAnimationFrame(raf);vx=vy=0;});
+addEventListener('pointermove',e=>{
+  if(!down)return;
+  if(!moved&&Math.hypot(e.clientX-sx,e.clientY-sy)>6){moved=true;stage.classList.add('drag');}
+  if(!moved)return;
+  const now=performance.now(),dt=Math.max(1,now-lt);
+  const dx=e.clientX-lx,dy=e.clientY-ly;ox+=dx;oy+=dy;clamp();
+  vx=dx/dt*16;vy=dy/dt*16;lx=e.clientX;ly=e.clientY;lt=now;render();
+});
+function end(){if(!down)return;down=false;stage.classList.remove('drag');if(moved){raf=requestAnimationFrame(glide);setTimeout(()=>moved=false,0);}}
+addEventListener('pointerup',end);addEventListener('pointercancel',end);
+stage.addEventListener('wheel',e=>{e.preventDefault();ox-=e.deltaX;oy-=e.deltaY;clamp();render();},{passive:false});
+addEventListener('resize',render);
+
+/* ===== Výber autora so návrhmi ===== */
+let active=-1,shown=[];
+function suggest(all){
+  const v=norm(q.value.trim());
+  shown=authors.filter(a=>all||!v||norm(a).includes(v));
+  sug.innerHTML=shown.length?'':'<p>Autor so zadaným menom nie je vo výstave.</p>';
+  shown.forEach((a,k)=>{const b=document.createElement('button');b.type='button';b.setAttribute('role','option');
+    b.innerHTML=`<span>${a}</span><small>${works.filter(w=>w.author===a).length}</small>`;
+    b.addEventListener('mousedown',e=>{e.preventDefault();pick(a)});sug.appendChild(b);});
+  active=-1;sug.classList.add('open');q.setAttribute('aria-expanded','true');
+}
+function closeSug(){sug.classList.remove('open');q.setAttribute('aria-expanded','false');}
+function pick(a){filter=a;q.value=a;clr.hidden=false;closeSug();q.blur();build();}
+function reset(){filter=null;q.value='';clr.hidden=true;closeSug();build();}
+q.addEventListener('focus',()=>suggest(!q.value));
+q.addEventListener('input',()=>{suggest(false);if(!q.value&&filter)reset();});
+q.addEventListener('blur',()=>setTimeout(closeSug,120));
+q.addEventListener('keydown',e=>{
+  const bs=[...sug.querySelectorAll('button')];
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!sug.classList.contains('open'))suggest(true);
+    active=(active+(e.key==='ArrowDown'?1:-1)+bs.length)%bs.length;bs.forEach((b,k)=>b.classList.toggle('on',k===active));}
+  else if(e.key==='Enter'){e.preventDefault();if(active>=0)pick(shown[active]);else if(shown.length===1)pick(shown[0]);}
+  else if(e.key==='Escape')closeSug();
+});
+drop.addEventListener('mousedown',e=>e.preventDefault());
+drop.addEventListener('click',()=>sug.classList.contains('open')?closeSug():suggest(true));
+clr.addEventListener('click',reset);
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('.search'))closeSug();});
+
+/* ===== Popup ===== */
+function openWork(w){
+  const da=document.getElementById('da');da.style.borderRadius=w.round?'50%':'0';da.style.aspectRatio=w.ar;da.style.width=`min(100%,${(58*w.ar).toFixed(1)}vh)`;
+  document.getElementById('dt').textContent=w.title;
+  document.getElementById('dm').textContent=`${w.author}, ${w.year}`;
+  document.getElementById('dn').textContent=[w.tech,w.dim,w.coll].filter(Boolean).join('\n')+(w.note?'\n\n'+w.note:'');
+  const ul=document.getElementById('do');ul.innerHTML='';
+  const others=works.filter(o=>o.author===w.author&&o!==w);
+  if(!others.length)ul.innerHTML='<li style="color:var(--muted);font-size:14px">Autor nemá vo výstave ďalšie diela.</li>';
+  others.forEach(o=>{const li=document.createElement('li'),b=document.createElement('button');b.type='button';b.textContent=o.title;
+    b.addEventListener('click',()=>openWork(o));li.appendChild(b);ul.appendChild(li);});
+  if(!dlg.open)dlg.showModal();dlg.scrollTop=0;
+}
+document.getElementById('dc').addEventListener('click',()=>dlg.close());
+dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
+
+build();
+</script>
+</body>
+</html>
