@@ -16,7 +16,12 @@
 html,body{height:100%;margin:0}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{background:var(--wall);color:var(--ink);font-family:var(--ui);overflow:hidden;overscroll-behavior:none}
-header{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:5;padding:14px 16px;display:flex;gap:10px;align-items:center;justify-content:center;pointer-events:none}
+header{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:5;padding:14px 100px;display:flex;gap:10px;align-items:center;justify-content:center;pointer-events:none}
+.lang{position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px;pointer-events:auto}
+.lang button{font:inherit;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--muted);background:none;border:0;border-radius:999px;min-width:40px;height:34px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.lang button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+@media (max-width:560px){header{padding:58px 16px 14px}.lang{top:14px;transform:none}}
 .search{position:relative;width:min(420px,100%);pointer-events:auto}
 .search input{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:12px 88px 12px 18px;outline:none}
 .search input:focus-visible{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
@@ -34,13 +39,13 @@ header{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:5;
 .w{position:absolute;left:0;top:0;padding:0;cursor:pointer;will-change:transform;touch-action:none}
 .w:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 #status{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));text-align:center;color:var(--muted);font-size:14px;pointer-events:none}
-dialog{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:24px;padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto}
+dialog{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:24px;padding:0;width:min(560px,calc(100vw - 24px));max-height:90vh;max-height:90dvh;overflow:hidden}
 dialog::backdrop{background:rgba(8,14,18,.62)}
-dialog[open]{animation:pop .22s ease-out}
+dialog[open]{display:flex;flex-direction:column;animation:pop .22s ease-out}
 @keyframes pop{from{transform:scale(.88);opacity:0}to{transform:none;opacity:1}}
-.stagewrap{display:flex;justify-content:center;padding:18px;background:rgba(0,0,0,.2)}
+.stagewrap{flex:none;display:flex;justify-content:center;padding:18px;background:rgba(0,0,0,.2)}
 .w,.art{--x:#6f6f6f;background-color:#fff;border:1px solid var(--x);border-radius:0;box-shadow:none;background-image:linear-gradient(to top right,transparent calc(50% - .5px),var(--x) calc(50% - .5px),var(--x) calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(to bottom right,transparent calc(50% - .5px),var(--x) calc(50% - .5px),var(--x) calc(50% + .5px),transparent calc(50% + .5px))}
-.body{padding:20px 24px 24px}
+.body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:20px 24px 24px}
 h2{font-family:var(--serif);font-weight:400;font-size:30px;line-height:1.15;margin:0 0 4px}
 .meta{margin:0 0 14px;color:var(--muted);font-size:15px}
 .ann{white-space:pre-line;font-family:var(--serif);font-size:18px;line-height:1.55;margin:0 0 20px;max-width:60ch}
@@ -60,6 +65,7 @@ h3{font-size:15px;font-weight:600;margin:0 0 8px}
     <div class="btns"><button id="clr" type="button" aria-label="Zrušiť filter" hidden>×</button><button id="drop" type="button" aria-label="Zobraziť zoznam autorov">▾</button></div>
     <div id="sug" role="listbox"></div>
   </div>
+  <div class="lang" role="group" aria-label="Jazyk / Language"><button type="button" data-l="sk" aria-pressed="true">SK</button><button type="button" data-l="en" aria-pressed="false">EN</button></div>
 </header>
 <div id="stage"></div>
 <div id="status"></div>
@@ -70,60 +76,100 @@ h3{font-size:15px;font-weight:600;margin:0 0 8px}
     <h2 id="dt"></h2>
     <p class="meta" id="dm"></p>
     <p class="ann" id="dn"></p>
-    <h3>Ďalšie diela autora</h3>
+    <h3 id="oh">Ďalšie diela autora</h3>
     <ul class="others" id="do"></ul>
   </div>
 </dialog>
 
 <script>
-/* ===== DÁTA z katalógu: [autor, názov, rok, technika, rozmery, zbierka, pomer strán (šírka/výška), poznámka] ===== */
+/* ===== DÁTA z CSV: [autor, názov SK, názov EN, rok, technika SK, technika EN, rozmery, zbierka SK, zbierka EN, pomer strán šírka/výška] ===== */
 const DATA = [
-["Robert Bielik","František","2025","olej na plátne","60 × 60 cm","majetok autora",1],
-["Robert Bielik","Ružový František","2025","olej na plátne","110 × 120 cm","majetok autora",1.09],
-["Milan Bočkay","Papier XXXIX.","1982","kresba na papieri","výška 84,5 cm, šírka 60 cm","zbierka PGU v Žiline",0.71],
-["Milan Bočkay","Papier XXXVII.","1980","kresba na papieri","85 × 60 cm","zbierka PGU v Žiline",0.71],
-["Michal Černušák","Glorious Favor","2012","akryl a olej na plátne","240 × 190 cm","majetok autora",0.79],
-["Peter Daniš","Lightscape","2022","olej na plátne","100 × 200 cm","majetok autora",2],
-["Julián Filo","Trpká dezilúzia","1987","olej/lak na plátne","100 × 200 cm","súkromný majetok",2],
-["Julián Filo","Bez názvu","1982","olej na plátne","100 × 162 cm","súkromný majetok",1.62],
-["Bohdan Hostiňák","Bez názvu","1997","olej na plátne","78 × 78,5 cm","zbierka NG",1.01],
-["Roman Hrčka","Fragmenty ľudskosti","2018","sadra","175 × 160 × 320 cm","majetok autora",0.91],
-["Roman Hrčka","Klietky samoty (dva objekty)","2019","epoxid, kov","113 × 138 × 108 cm a 115 × 135 × 120 cm","majetok autora",1.22],
-["František Hrtús","Na brehu priezračnej rieky","1974","olej na plátne","41 × 51 cm","zbierka KG v Oščadnici",1.24],
-["František Hrtús","Variácie na drevo I.","1984","olej na plátne","65 × 50 cm","zbierka KG v Oščadnici",0.77],
-["Jozef Jankovič","Korejský motív III.","2006","bronz a mramor","51 × 50 × 23 cm","zbierka GMAB v Trenčíne",0.98],
-["Martin Kochan","Zmena okĺbenia","2020","polyester","130 cm","majetok autora",1],
-["Marcel Mališ","Lebensraum","2025","olej na plátne","90 × 65 cm","súkromná zbierka",0.72],
-["Marcel Mališ","Lebensraum, H&M Hommage a Roy","2026","olej na plátne","90 × 65 cm","súkromná zbierka",0.72],
-["Richard Marco","Seven sleepers I.","2025","olej na plátne","190 × 130 cm","",0.68,"Tomb of St. Jedwiga Poland by Antoni Madeyski"],
-["Richard Marco","Seven sleepers III.","2025","olej na plátne","190 × 130 cm","",0.68,"Tomb of Pope Clement VI. by master Pierre Boye and his two assistants Jean de Sanholis and Jean David, 1346 – 1351"],
-["Dušan Mravec","Spomienky","2019","olej na plátne","150 × 180 cm","majetok autora",1.2],
-["Dušan Mravec","Sestry","2019","olej na plátne","60 × 50 cm","majetok autora",0.83],
-["Michal Mráz","Crash","2025","olej, akryl, asfalt na plátne","100 × 120 cm","súkromný majetok",1.2],
-["Michal Mráz","House of Card","2024","olej, akryl, asfalt na plátne","70 × 50 cm","súkromný majetok",0.71],
-["Michaela Rázusová Nociarová","Plavky","2003","olej na plátne","160 × 130 cm","súkromný majetok",0.81],
-["Štefan Papčo","Stanislav – Občania","2012 – 2026","drevo","49 × 165 × 70 cm","majetok autora",0.3],
-["Štefan Papčo","Alena – Občania","2011 – 2026","lipové drevo","59 × 88 × 172 cm","majetok autora",0.34],
-["Veronika Rónaiová","Všedné dni","1987","olej na plátne","100 × 150 cm","zbierka „NUBA GALLERY“",1.5],
-["Roman Rembovský","V rajskej záhrade / In The Garden Of Eden","2024 – 2026","olej na plátne","140 × 120 cm","majetok autora",0.86],
-["Roman Rembovský","V tichu / In The Silence","2022","olej na plátne","100 × 120 cm","majetok autora",1.2],
-["Maroš Rovňák","Štúdia figúry v krajine II","2026","olej na plátne","120 × 150 cm","majetok autora",1.25],
-["Martina Rötling","Troubling Areas I. a II.","2023","kresba na papieri","73 × 55 cm","zbierka NG",0.75],
-["Dorota Sadovská","#StayHome 5","2022","olej na plátne","80 × 70 cm","majetok autorky",0.88],
-["Miroslav Sandanus","Ilúzie I","2023","akryl na plátne","155 × 190 cm","majetok autora",1.23],
-["Pavol Stručka","Harry a Modráček","2013 – 2014","olej na plátne","200 × 170 cm","zbierka GMAB v Trenčíne",0.85],
-["Jozef Suchoža","Immaculatam","2018","sadra","47 ks, jednotlivo 40 × 10 × 10 cm","majetok autora",0.25],
-["Jozef Srna st.","Po dostihoch","1981","olej na plátne","125 × 145 cm","zbierka GMAB v Trenčíne",1.16],
-["Adam Šakový","Kamene 8","2020","akryl na plátne","130 × 220 cm","majetok autora",1.69],
-["Adam Šakový","Kamene 9","2020","akryl na plátne","130 × 220 cm","majetok autora",1.69],
-["Veronika Šramatyová","Hobby painting 1.–6.","2008","gvaš na papieri","8 × 12 cm","zbierka SSG v Banskej Bystrici",1.5],
-["Miloš Šimurda","Situácia č. 2","1970 – 72","olej, plátno, plexisklo, kov","200 × 116 × 10 cm","zbierka SNG",0.58],
-["Miloš Šimurda","Spolujazdec","1971","plexisklo, plátno, plech, asambláž","116 × 200 × 10 cm","zbierka SNG",1.72],
-["Miro Trubač","Ján, dospievanie","2023","kombinovaná technika","30 × 160 × 400 cm","majetok autora",1.5],
-["Dušana Vrbovská","Z cyklu Nájsť cestu V.","2025","olej na plátne","90 × 130 cm","majetok autorky",1.44],
-["Vladislav Zabel","Caelum","2018","olej na dreve","tondo, priemer 80 cm","majetok autora",1],
-["Uľjana Zmetáková","Prvý lúč","1978","tempera na kartóne","77 × 51 cm","zbierka „NUBA GALLERY“",0.66],
-["Ivona Žirková","Vrstvy","2021","akryl na plátne","190 × 130 cm","majetok autorky",0.68]
+["Robert Bielik", "Dojatie", "Emotion", "2015", "olej na plátne", "oil on canvas", "160 × 200 cm", "majetok autora", "artist’s collection", 1.25],
+["Robert Bielik", "František", "Francis", "2025", "olej na plátne", "oil on canvas", "60 × 60 cm", "majetok autora", "artist’s collection", 1.0],
+["Robert Bielik", "Paraglajdista", "Paraglider", "2025", "olej na plátne", "oil on canvas", "140 × 200 cm", "majetok autora", "artist’s collection", 1.43],
+["Robert Bielik", "Ružový František", "Pink Francis", "2025", "olej na plátne", "oil on canvas", "110 × 120 cm", "majetok autora", "artist’s collection", 1.09],
+["Milan Bočkay", "Papier XXXIX.", "Paper XXXIX", "1982", "kresba na papieri", "drawing on paper", "84,5 × 60 cm", "zbierka Považskej galérie umenia v Žiline", "collection of the Považie Gallery of Arts in Žilina", 0.71],
+["Milan Bočkay", "Papier XLVII.", "Paper XLVII", "1984", "kresba na papieri", "drawing on paper", "85 × 60 cm", "zbierka Považskej galérie umenia v Žiline", "collection of the Považie Gallery of Arts in Žilina", 0.71],
+["Milan Bočkay", "Papier XXXVII.", "Paper XXXVII", "1980", "kresba na papieri", "drawing on paper", "85 × 60 cm", "zbierka Považskej galérie umenia v Žiline", "collection of the Považie Gallery of Arts in Žilina", 0.71],
+["Milan Bočkay", "Papier XLVI.", "Paper XLVI", "1983", "kresba na papieri", "drawing on paper", "85 × 60 cm", "zbierka Považskej galérie umenia v Žiline", "collection of the Považie Gallery of Arts in Žilina", 0.71],
+["Michal Černušák", "Glorious Favor", "Glorious Favor", "2012", "akryl a olej na plátne", "acrylic and oil on canvas", "240 × 190 cm", "majetok autora", "artist’s collection", 0.79],
+["Michal Černušák", "Senat Bloody Senat", "Senat Bloody Senat", "2010", "akryl a olej na plátne", "acrylic and oil on canvas", "150 × 200 cm", "súkromná zbierka", "private collection", 1.33],
+["Peter Daniš", "Lightscape", "Lightscape", "2022", "olej na plátne", "oil on canvas", "100 × 200 cm", "majetok autora", "artist’s collection", 2.0],
+["Peter Daniš", "Factory", "Factory", "2022", "olej na plátne", "oil on canvas", "100 × 120 cm", "majetok autora", "artist’s collection", 1.2],
+["Peter Daniš", "Horizon", "Horizon", "2024", "olej na plátne", "oil on canvas", "150 × 360 cm", "majetok autora", "artist’s collection", 2.4],
+["Julián Filo", "Trpká dezilúzia", "Bitter Disillusionment", "1987", "olej/lak na plátne", "oil/lacquer on canvas", "100 × 200 cm", "súkromný majetok", "private collection", 2.0],
+["Julián Filo", "Bez názvu", "Untitled", "1982", "olej na plátne", "oil on canvas", "100 × 162 cm", "súkromný majetok", "private collection", 1.62],
+["Viktor Frešo", "My Grandfather (Paľo Bielik)", "My Grandfather (Paľo Bielik)", "2026", "polyetyléntereftalát, polyester, polyuretán", "polyethylene terephthalate, polyester, polyurethane", "210 × 120 × 120 cm", "majetok autora", "artist’s collection", 0.57],
+["Viktor Frešo", "Metamorphosis Me", "Metamorphosis Me", "2026", "polyetyléntereftalát, polyester, polyuretán", "polyethylene terephthalate, polyester, polyurethane", "130 × 50 × 70 cm", "majetok autora", "artist’s collection", 0.38],
+["Viktor Frešo", "All Together Now", "All Together Now", "2026", "akustická inštalácia/nahrávka", "acoustic installation / sound recording, 4 min 51 s", "4 min a 51 s", "majetok autora", "artist’s collection", 1],
+["Viktor Frešo", "After me – performance", "After me – performance", "2026", "zvuková nahrávka", "sound recording, 11 min 35 s (performance 3 July 2026)", "11 min a 35 s", "majetok autora", "artist’s collection", 1],
+["Bohdan Hostiňák", "Krok do prázdna", "Step into the Void", "1997", "olej na plátne", "oil on canvas", "78 × 78,5 cm", "zbierka Nitrianskej galérie", "collection of the Nitra Gallery", 1.01],
+["Roman Hrčka", "Fragmenty ľudskosti", "Fragments of Humanity", "2018", "sadra", "plaster", "175 × 160 × 320 cm", "majetok autora", "artist’s collection", 0.91],
+["Roman Hrčka", "Klietky samoty", "Cages of Solitude", "2019", "epoxid, kov", "epoxy, metal", "113 × 138 × 108 cm a 115 × 135 × 120 cm", "majetok autora", "artist’s collection", 1.22],
+["František Hrtús", "Na brehu priezračnej rieky", "On the Bank of a Clear River", "1974", "olej na plátne", "oil on canvas", "41 × 51 cm", "zbierka Kysuckej galérie v Oščadnici", "collection of the Kysuce Gallery in Oščadnica", 1.24],
+["František Hrtús", "Variácie na drevo I.", "Variations on Wood I", "1984", "olej na plátne", "oil on canvas", "65 × 50 cm", "zbierka Kysuckej galérie v Oščadnici", "collection of the Kysuce Gallery in Oščadnica", 0.77],
+["František Hrtús", "Variácie na drevo II.", "Variations on Wood II", "1984", "olej na plátne", "oil on canvas", "45 × 55 cm", "zbierka Kysuckej galérie v Oščadnici", "collection of the Kysuce Gallery in Oščadnica", 1.22],
+["František Hrtús", "Variácie na drevo III.", "Variations on Wood III", "1984", "olej na plátne", "oil on canvas", "45 × 55 cm", "zbierka Kysuckej galérie v Oščadnici", "collection of the Kysuce Gallery in Oščadnica", 1.22],
+["Jozef Jankovič", "Kórejský motív III.", "Korean Motif III", "2006", "mramor, bronz", "marble, bronze", "51 × 50 × 23 cm", "zbierka Galérie Miloša Alexandra Bazovského v Trenčíne", "collection of the Miloš Alexander Bazovský Gallery in Trenčín", 0.98],
+["Martin Kochan", "Hviezda", "Star", "2009", "polyester", "polyester", "130 cm", "majetok autora", "artist’s collection", 1],
+["Martin Kochan", "Zmena okĺbenia", "Shift of Articulation", "2020", "polyester", "polyester", "190 cm", "majetok autora", "artist’s collection", 1],
+["Marcel Mališ", "Lebensraum (New Museum)", "Lebensraum (New Museum)", "2025", "olej na plátne", "oil on canvas", "90 × 65 cm", "súkromný majetok", "private collection", 0.72],
+["Marcel Mališ", "Lebensraum, H&M Hommage a Roy", "Lebensraum, H&M Hommage a Roy", "2026", "olej na plátne", "oil on canvas", "90 × 65 cm", "súkromný majetok", "private collection", 0.72],
+["Richard Marco", "Sedmospáč I. (Hrobka Hedvigy Poľskej od Antoniho Madeyskiho)", "Seven Sleepers I (Tomb of Hedwig of Poland by Antoni Madeyski)", "2025", "olej na plátne", "oil on canvas", "190 × 130 cm", "majetok autora", "artist’s collection", 0.68],
+["Richard Marco", "Sedmospáč III. (Hrobka pápeža Klementa VI. od Pierrea Boyea a jeho dvoch asistentov Jeana de Sanholisa a Jeana Davida, 1346 – 1351)", "Seven Sleepers III (Tomb of Pope Clement VI by Pierre Boye and His Two Assistants Jean de Sanholis and Jean David, 1346–1351)", "2025", "olej na plátne", "oil on canvas", "190 × 130 cm", "majetok autora", "artist’s collection", 0.68],
+["Dušan Mravec", "Persepolis", "Persepolis", "2011", "akryl a olej na plátne", "acrylic and oil on canvas", "110 × 190 cm", "majetok autora", "artist’s collection", 1.73],
+["Dušan Mravec", "Babylon", "Babylon", "2016", "akryl, káva a olej na plátne", "acrylic, coffee, and oil on canvas", "150 × 180 cm", "majetok autora", "artist’s collection", 1.2],
+["Dušan Mravec", "Spomienky", "Memories", "2019", "olej na plátne", "oil on canvas", "150 × 180 cm", "majetok autora", "artist’s collection", 1.2],
+["Dušan Mravec", "Sestry", "Sisters", "2019", "olej na plátne", "oil on canvas", "60 × 50 cm", "majetok autora", "artist’s collection", 0.83],
+["Michal Mráz", "Crash", "Crash", "2025", "olej, akryl, asfalt na plátne", "oil, acrylic, and bitumen on canvas", "100 × 120 cm", "súkromný majetok", "private collection", 1.2],
+["Michal Mráz", "House of Card", "House of Card", "2024", "olej, akryl, asfalt na plátne", "oil, acrylic, and bitumen on canvas", "70 × 50 cm", "súkromný majetok", "private collection", 0.71],
+["Štefan Papčo", "Stanislav – Občania", "Stanislav – Citizens", "2012 – 2026", "drevo", "wood", "49 × 165 × 70 cm", "majetok autora", "artist’s collection", 0.3],
+["Štefan Papčo", "Alena – Občania", "Alena – Citizens", "2011 – 2026", "lipové drevo", "linden wood", "59 × 88 × 172 cm", "majetok autora", "artist’s collection", 0.34],
+["Michaela Rázusová Nociarová", "Skok", "The Leap", "2006", "olej na plátne", "oil on canvas", "200 × 145 cm", "súkromný majetok", "private collection", 0.72],
+["Michaela Rázusová Nociarová", "Plavky", "Swimsuits", "2003", "olej na plátne", "oil on canvas", "160 × 130 cm", "súkromný majetok", "private collection", 0.81],
+["Roman Rembovský", "V rajskej záhrade", "In The Garden Of Eden", "2024 – 2026", "olej na plátne", "oil on canvas", "140 × 120 cm", "majetok autora", "artist’s collection", 0.86],
+["Roman Rembovský", "Blato 2", "Mud 2", "2026", "olej na plátne", "oil on canvas", "120 × 80 cm", "majetok autora", "artist’s collection", 0.67],
+["Roman Rembovský", "Blato 3 (Magic space)", "Mud 3 (Magic space)", "2026", "olej na plátne", "oil on canvas", "120 × 80 cm", "majetok autora", "artist’s collection", 0.67],
+["Roman Rembovský", "V tichosti", "In The Silence", "2022", "olej na plátne", "oil on canvas", "100 × 120 cm", "majetok autora", "artist’s collection", 1.2],
+["Veronika Rónaiová", "Na našej zastávke", "At Our Bus Stop", "1976", "olej na plátne", "oil on canvas", "60 × 100 cm", "zbierka „Nuba Gallery“", "Nuba Gallery collection", 1.67],
+["Veronika Rónaiová", "Všedné dni", "Everyday Days", "1987", "olej na plátne", "oil on canvas", "100 × 150 cm", "zbierka „Nuba Gallery“", "Nuba Gallery collection", 1.5],
+["Veronika Rónaiová", "Dráma", "Drama", "1979", "olej na plátne", "oil on canvas", "100 × 100 cm", "majetok autorky", "artist’s collection", 1.0],
+["Martina Rötling", "Troubling Areas I.", "Troubling Areas I.", "2023", "kresba na papieri", "drawing on paper", "73 × 55 cm", "zbierka Nitrianskej galérie", "collection of the Nitra Gallery", 0.75],
+["Martina Rötling", "Troubling Areas II.", "Troubling Areas II.", "2023", "kresba na papieri", "drawing on paper", "73 × 55 cm", "zbierka Nitrianskej galérie", "collection of the Nitra Gallery", 0.75],
+["Maroš Rovňák", "Štúdia spiacej figúry na koni", "Study of a Sleeping Figure on Horseback", "2026", "olej na plátne", "oil on canvas", "120 × 100 cm", "majetok autora", "artist’s collection", 0.83],
+["Maroš Rovňák", "Štúdia figúry v krajine II", "Study of a Figure in a Landscape II", "2026", "olej na plátne", "oil on canvas", "120 × 150 cm", "majetok autora", "artist’s collection", 1.25],
+["Maroš Rovňák", "Štúdia figúry v ružových šatách", "Study of a Figure in a Pink Dress", "2026", "olej na plátne", "oil on canvas", "130 × 150 cm", "majetok autora", "artist’s collection", 1.15],
+["Dorota Sadovská", "Autoportrét s manželom II.", "Self-Portrait with Husband II", "2019", "olej na plátne", "oil on canvas", "60 × 80 cm", "majetok autorky", "artist’s collection", 1.33],
+["Dorota Sadovská", "#StayHome 5", "#StayHome 5", "2022", "olej na plátne", "oil on canvas", "80 × 70 cm", "majetok autorky", "artist’s collection", 0.88],
+["Dorota Sadovská", "#StayHome 9", "#StayHome 9", "2026", "olej na plátne", "oil on canvas", "80 × 130 cm", "majetok autorky", "artist’s collection", 1.62],
+["Adam Šakový", "Kamene 8", "Stones 8", "2020", "akryl na plátne", "acrylic on canvas", "130 × 220 cm", "majetok autora", "artist’s collection", 1.69],
+["Adam Šakový", "Kamene 9", "Stones 9", "2020", "akryl na plátne", "acrylic on canvas", "130 × 220 cm", "majetok autora", "artist’s collection", 1.69],
+["Miroslav Sandanus", "Apatia 07", "Apathy 07", "2022", "akryl na plátne", "acrylic on canvas", "190 × 150 cm", "majetok autora", "artist’s collection", 0.79],
+["Miroslav Sandanus", "Ilúzie I", "Illusions I", "2023", "akryl na plátne", "acrylic on canvas", "155 × 190 cm", "majetok autora", "artist’s collection", 1.23],
+["Miroslav Sandanus", "Ilúzie III", "Illusions III", "2023", "akryl na plátne", "acrylic on canvas", "80 × 80 cm", "majetok autora", "artist’s collection", 1.0],
+["Miloš Šimurda", "Situácia č. 2", "Situation No. 2", "1970 – 1972", "autorská technika/asambláž (olej, plátno, plexisklo, polymetylmetakrylát)", "artist’s technique / assemblage (oil, canvas, acrylic glass, polymethyl methacrylate)", "117 × 200 × 5 cm", "zbierka Slovenskej národnej galérie v Bratislave", "collection of the Slovak National Gallery in Bratislava", 1.71],
+["Miloš Šimurda", "Spolujazdec", "Co-Driver", "1971", "autorská technika/asambláž (olej, plátno, plexisklo, polymetylmetakrylát)", "artist’s technique / assemblage (oil, canvas, acrylic glass, polymethyl methacrylate)", "116 × 200 × 10 cm", "zbierka Slovenskej národnej galérie v Bratislave", "collection of the Slovak National Gallery in Bratislava", 1.72],
+["Veronika Šramatyová", "Hobby Painting 1. – 6.", "Hobby Painting 1. – 6.", "2008", "gvaš na papieri", "gouache on paper", "8 × 12 cm", "zbierka Stredoslovenskej galérie v Banskej Bystrici", "collection of the Central Slovak Gallery in Banská Bystrica", 1.5],
+["Jozef Srna st.", "Predjarie", "Early Spring", "1984", "olej na plátne", "oil on canvas", "120 × 116 cm", "zbierka Galérie Miloša Alexandra Bazovského v Trenčíne", "collection of the Miloš Alexander Bazovský Gallery in Trenčín", 0.97],
+["Jozef Srna st.", "Po dostihoch", "After the Race", "1981", "olej na plátne", "oil on canvas", "125 × 145 cm", "zbierka Galérie Miloša Alexandra Bazovského v Trenčíne", "collection of the Miloš Alexander Bazovský Gallery in Trenčín", 1.16],
+["Pavol Stručka", "Harry a Modráček", "Harry and Modráček", "2013 – 2014", "olej na plátne", "oil on canvas", "200 × 170 cm", "zbierka Galérie Miloša Alexandra Bazovského v Trenčíne", "collection of the Miloš Alexander Bazovský Gallery in Trenčín", 0.85],
+["Pavol Stručka", "Nesenie kríža", "Carrying of the Cross", "2023 – 2026", "olej na plátne", "oil on canvas", "190 × 120 cm", "majetok autora", "artist’s collection", 0.63],
+["Jozef Suchoža", "Altaussee?", "Altaussee?", "2018", "manipulovaná fotografia", "manipulated photograph", "20 × 30 cm", "majetok autora", "artist’s collection", 1.5],
+["Jozef Suchoža", "Altaussee?", "Altaussee?", "2018", "sochársky objekt, sadra, plast", "sculptural object, plaster, plastic", "65 × 65 × 220 cm", "majetok autora", "artist’s collection", 0.3],
+["Jozef Suchoža", "Immaculate", "Immaculate", "2016", "manipulovaný ready–made, kolorovaná sadra", "manipulated ready-made, coloured plaster", "10 × 10 × 40 cm", "majetok autora", "artist’s collection", 0.25],
+["Jozef Suchoža", "Immaculatam", "Immaculatam", "2018", "cca 47 kusov sochárskych objektov, sadra", "approx. 47 pieces of sculptural objects, plaster", "jednotlivo 10 × 10 × 40 cm", "majetok autora", "artist’s collection", 0.25],
+["Miro Trubač", "Ján, dospievanie", "John Adolescence", "2023", "kombinovaná technika", "mixed media", "30 × 160 × 400 cm", "majetok autora", "artist’s collection", 1.5],
+["Miro Trubač", "Smoliar", "Underdog", "2023", "kombinovaná technika", "mixed media", "55 × 65 × 100 cm", "majetok autora", "artist’s collection", 1.18],
+["Miro Trubač", "Pád", "Went Down", "2023", "kombinovaná technika", "mixed media", "85 × 90 × 25 cm", "majetok autora", "artist’s collection", 1.06],
+["Dušana Vrbovská", "Z cyklu nájsť cestu VII.", "From the Series Finding a Way VII", "2025", "olej na plátne", "oil on canvas", "65 × 40 cm", "majetok autorky", "artist’s collection", 0.62],
+["Dušana Vrbovská", "Z cyklu nájsť cestu V.", "From the Series Finding a Way V", "2025", "olej na plátne", "oil on canvas", "90 × 130 cm", "majetok autorky", "artist’s collection", 1.44],
+["Vladislav Zabel", "Caelum", "Caelum", "2018", "olej na dreve", "tondo, oil on wood", "tondo 80 cm", "majetok autora", "artist’s collection", 1],
+["Vladislav Zabel", "Sen noci svätojánskej", "A Midsummer Night’s Dream", "2007 – 2011", "olej na plátne", "oil on canvas", "130 × 110 cm", "majetok autora", "artist’s collection", 0.85],
+["Ivona Žirková", "Vrstvy", "Layers", "2021", "akryl na plátne", "acrylic on canvas", "190 × 130 cm", "majetok autorky", "artist’s collection", 0.68],
+["Ivona Žirková", "Vrstvenie", "Layering", "2024", "akryl na plátne", "acrylic on canvas", "180 × 130 cm", "majetok autorky", "artist’s collection", 0.72],
+["Uľjana Zmetáková", "Svetlo a tieň II.", "Light and Shadow II", "1979", "tempera, kartón", "tempera on cardboard", "99 × 65 cm", "zbierka „Nuba Gallery“", "Nuba Gallery collection", 0.66],
+["Uľjana Zmetáková", "Prvý lúč", "First Ray", "1978", "tempera, kartón", "tempera on cardboard", "77 × 51 cm", "zbierka „Nuba Gallery“", "Nuba Gallery collection", 0.66],
+["Uľjana Zmetáková", "V električke", "In the Tram", "1990", "kombinovaná technika na papieri", "mixed media on paper", "30 × 50 cm", "zbierka „Nuba Gallery“", "Nuba Gallery collection", 1.67]
 ];
 
 const stage=document.getElementById('stage'), status=document.getElementById('status');
@@ -131,9 +177,35 @@ const q=document.getElementById('q'), sug=document.getElementById('sug'), clr=do
 const dlg=document.getElementById('dlg');
 const norm=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const authors=[...new Set(DATA.map(d=>d[0]))];
-const works=DATA.map((d,i)=>({i,id:String(i+1).padStart(2,'0'),author:d[0],title:d[1],year:d[2],tech:d[3],dim:d[4],coll:d[5],ar:d[6],note:d[7]||'',round:/tondo/.test(d[4]),
-  /* jedna pastelová farba pre každé dielo – neskôr nahradia reprodukcie */
-  color:`hsl(${Math.round((i*137.508)%360)} ${62+(i*7)%14}% ${80+(i*5)%7}%)`}));
+const works=DATA.map((d,i)=>({i,id:String(i+1).padStart(2,'0'),author:d[0],t:[d[1],d[2]],year:d[3],tech:[d[4],d[5]],dim:d[6],coll:[d[7],d[8]],ar:d[9],round:/tondo/.test(d[6])}));
+
+/* ===== Jazyk SK / EN ===== */
+let lang='sk';try{const sv=localStorage.getItem('lang');if(sv==='en'||sv==='sk')lang=sv}catch(e){}
+const L=()=>lang==='en'?1:0;
+const STR={
+  sk:{ph:'Autor – vyberte alebo napíšte meno',author:'Autor',clr:'Zrušiť filter',drop:'Zobraziť zoznam autorov',close:'Zavrieť',more:'Ďalšie diela autora',none:'Autor so zadaným menom nie je vo výstave.',noOthers:'Autor nemá vo výstave ďalšie diela.',title:'Výstava – diela'},
+  en:{ph:'Artist – choose or type a name',author:'Artist',clr:'Clear filter',drop:'Show list of artists',close:'Close',more:'More works by this artist',none:'No artist with this name in the exhibition.',noOthers:'No other works by this artist in the exhibition.',title:'Exhibition – works'}
+};
+const S=()=>STR[lang];
+function applyStatic(){
+  const t=S();document.documentElement.lang=lang;document.title=t.title;
+  q.placeholder=t.ph;q.setAttribute('aria-label',t.author);clr.setAttribute('aria-label',t.clr);drop.setAttribute('aria-label',t.drop);
+  document.getElementById('dc').setAttribute('aria-label',t.close);document.getElementById('oh').textContent=t.more;
+  document.querySelectorAll('.lang button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===lang));
+}
+function setStatus(){
+  const n=list.length;
+  status.textContent=lang==='en'
+    ?(filter?`${filter} · ${n} ${n===1?'work':'works'}`:`${n} works · drag to browse, tap a work`)
+    :(filter?`${filter} · ${n} ${n===1?'dielo':n<5?'diela':'diel'}`:`${n} diel · potiahnite prstom a vyberte dielo`);
+}
+function setLang(l){
+  lang=l;try{localStorage.setItem('lang',l)}catch(e){}
+  applyStatic();
+  els.forEach((b,k)=>b.setAttribute('aria-label',list[k].t[L()]+', '+list[k].author));
+  setStatus();closeSug();
+  if(dlg.open&&cur)openWork(byId[cur]);
+}
 
 /* ===== Rozloženie ako na Apple Watch (včelia plástva) + zväčšovanie pri strede ===== */
 const GAP=118; let list=[], els=[], pos=[], ox=0, oy=0, vx=0, vy=0, raf=0, filter=null;
@@ -155,10 +227,10 @@ function build(){
   els=list.map(w=>{const b=document.createElement('button');b.className='w';b.type='button';
     const S=116,bw=w.ar>=1?S:S*w.ar,bh=w.ar>=1?S/w.ar:S;
     b.style.width=bw+'px';b.style.height=bh+'px';b.style.margin=`${-bh/2}px 0 0 ${-bw/2}px`;
-    if(w.round)b.style.borderRadius='50%';b.setAttribute('aria-label',w.title+', '+w.author);
+    if(w.round)b.style.borderRadius='50%';b.setAttribute('aria-label',w.t[L()]+', '+w.author);
     b.addEventListener('click',()=>{if(!moved)openWork(w)});stage.appendChild(b);return b;});
   ox=oy=0;vx=vy=0;render();
-  status.textContent=filter?`${filter} · ${n} ${n===1?'dielo':n<5?'diela':'diel'}`:`${n} diel · potiahnite prstom a vyberte dielo`;
+  setStatus();
 }
 function render(){
   const W=innerWidth,H=innerHeight,cx=W/2,cy=H/2+20,R=Math.min(W,H)*.55;
@@ -198,7 +270,7 @@ let active=-1,shown=[];
 function suggest(all){
   const v=norm(q.value.trim());
   shown=authors.filter(a=>all||!v||norm(a).includes(v));
-  sug.innerHTML=shown.length?'':'<p>Autor so zadaným menom nie je vo výstave.</p>';
+  sug.innerHTML=shown.length?'':'<p>'+S().none+'</p>';
   shown.forEach((a,k)=>{const b=document.createElement('button');b.type='button';b.setAttribute('role','option');
     b.innerHTML=`<span>${a}</span><small>${works.filter(w=>w.author===a).length}</small>`;
     b.addEventListener('mousedown',e=>{e.preventDefault();pick(a)});sug.appendChild(b);});
@@ -226,16 +298,16 @@ document.addEventListener('pointerdown',e=>{if(!e.target.closest('.search'))clos
 function openWork(w){
   cur=w.id;
   if(location.hash.slice(1)!==w.id)try{location.hash=w.id}catch(e){}
-  const da=document.getElementById('da');da.style.borderRadius=w.round?'50%':'0';da.style.aspectRatio=w.ar;da.style.width=`min(100%,${(58*w.ar).toFixed(1)}vh)`;
-  document.getElementById('dt').textContent=w.title;
+  const da=document.getElementById('da');da.style.borderRadius=w.round?'50%':'0';da.style.aspectRatio=w.ar;da.style.width=`min(100%,${(46*w.ar).toFixed(1)}vh)`;
+  document.getElementById('dt').textContent=w.t[L()];
   document.getElementById('dm').textContent=`${w.author}, ${w.year}`;
-  document.getElementById('dn').textContent=[w.tech,w.dim,w.coll].filter(Boolean).join('\n')+(w.note?'\n\n'+w.note:'');
+  document.getElementById('dn').textContent=[w.tech[L()],w.dim,w.coll[L()]].filter(Boolean).join('\n');
   const ul=document.getElementById('do');ul.innerHTML='';
   const others=works.filter(o=>o.author===w.author&&o!==w);
-  if(!others.length)ul.innerHTML='<li style="color:var(--muted);font-size:14px">Autor nemá vo výstave ďalšie diela.</li>';
-  others.forEach(o=>{const li=document.createElement('li'),b=document.createElement('button');b.type='button';b.textContent=o.title;
+  if(!others.length)ul.innerHTML='<li style="color:var(--muted);font-size:14px">'+S().noOthers+'</li>';
+  others.forEach(o=>{const li=document.createElement('li'),b=document.createElement('button');b.type='button';b.textContent=o.t[L()];
     b.addEventListener('click',()=>openWork(o));li.appendChild(b);ul.appendChild(li);});
-  if(!dlg.open)dlg.showModal();dlg.scrollTop=0;
+  if(!dlg.open)dlg.showModal();document.querySelector('.body').scrollTop=0;
 }
 document.getElementById('dc').addEventListener('click',()=>dlg.close());
 dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
@@ -252,7 +324,8 @@ function route(){
 addEventListener('hashchange',route);
 dlg.addEventListener('close',()=>{cur=null;try{if(location.hash)history.replaceState(null,'',location.pathname+location.search);}catch(e){}});
 
-build();route();
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.l)));
+applyStatic();build();route();
 </script>
 </body>
 </html>
